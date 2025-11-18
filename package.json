@@ -1,0 +1,26 @@
+{
+  "name": "data-warehouse-etl-orchestrator",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ETL orchestrator for centralizing data from various sources into a warehouse",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:backend": "npm run dev --workspace=packages/backend",
+    "dev:ui": "npm run dev --workspace=packages/ui",
+    "dev:worker": "npm run dev:worker --workspace=packages/backend",
+    "build": "npm run build --workspaces",
+    "migrate": "npm run migrate --workspace=packages/backend",
+    "seed": "npm run seed --workspace=packages/backend"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "etl",
+    "data-warehouse",
+    "orchestrator",
+    "pipeline"
+  ]
+}

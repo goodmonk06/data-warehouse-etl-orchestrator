@@ -1,0 +1,67 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model DataSource {
+  id         String     @id @default(uuid())
+  name       String
+  type       String     // postgres, api, csv
+  configJson Json       // connection details, credentials, etc.
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  pipelines  Pipeline[]
+
+  @@map("data_sources")
+}
+
+model DataTarget {
+  id         String     @id @default(uuid())
+  name       String
+  type       String     // warehouse_table
+  configJson Json       // table name, schema, etc.
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  pipelines  Pipeline[]
+
+  @@map("data_targets")
+}
+
+model Pipeline {
+  id                 String        @id @default(uuid())
+  name               String
+  description        String?
+  sourceId           String
+  targetId           String
+  transformScriptPath String?      // path to JS/TS transform function
+  scheduleCron       String?       // cron expression for scheduling
+  enabled            Boolean       @default(true)
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  source             DataSource    @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  target             DataTarget    @relation(fields: [targetId], references: [id], onDelete: Cascade)
+  runs               PipelineRun[]
+
+  @@map("pipelines")
+}
+
+model PipelineRun {
+  id         String    @id @default(uuid())
+  pipelineId String
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+  status     String    // running, success, failed
+  statsJson  Json?     // rows processed, bytes, etc.
+  logPath    String?   // path to log file
+  errorMessage String? @db.Text
+
+  pipeline   Pipeline  @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+
+  @@map("pipeline_runs")
+  @@index([pipelineId, startedAt])
+}

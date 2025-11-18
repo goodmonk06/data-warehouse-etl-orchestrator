@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { PipelineExecutor } from '../engine';
 import { z } from 'zod';
+import { NotFoundError } from '../utils/errors';
 
 // Validation schemas
 const DataSourceSchema = z.object({
@@ -51,7 +52,7 @@ export async function registerRoutes(
       include: { pipelines: true },
     });
     if (!source) {
-      throw new Error('Source not found');
+      throw new NotFoundError('Source', id);
     }
     return source;
   });
@@ -93,7 +94,7 @@ export async function registerRoutes(
       include: { pipelines: true },
     });
     if (!target) {
-      throw new Error('Target not found');
+      throw new NotFoundError('Target', id);
     }
     return target;
   });
@@ -147,7 +148,7 @@ export async function registerRoutes(
       },
     });
     if (!pipeline) {
-      throw new Error('Pipeline not found');
+      throw new NotFoundError('Pipeline', id);
     }
     return pipeline;
   });
@@ -191,7 +192,7 @@ export async function registerRoutes(
       include: { pipeline: true },
     });
     if (!run) {
-      throw new Error('Run not found');
+      throw new NotFoundError('Run', id);
     }
     return run;
   });

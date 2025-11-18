@@ -1,104 +1,325 @@
 # Data Warehouse ETL Orchestrator
 
-A comprehensive ETL (Extract, Transform, Load) orchestration platform for centralizing data from various application databases and APIs into a unified data warehouse for BI and analytics.
+> A comprehensive ETL (Extract, Transform, Load) orchestration platform for centralizing data from various application databases and APIs into a unified data warehouse for BI and analytics.
 
-## Features
+## Overview
 
-- **Multiple Source Connectors**: PostgreSQL, HTTP JSON APIs, CSV (extensible)
-- **Warehouse Targets**: DuckDB, PostgreSQL, BigQuery support
-- **Transform Engine**: Apply custom JavaScript/TypeScript transformations
-- **Scheduling**: Cron-based automated pipeline execution
-- **Pipeline Management**: REST API and web UI for configuration
-- **Run History**: Track execution status, logs, and statistics
-- **Data Lineage**: Understand data flow from sources to targets
-
-## Architecture
-
-```
-┌─────────────────┐
-│   Data Sources  │
-│  - PostgreSQL   │
-│  - APIs         │
-│  - CSV Files    │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│   ETL Engine    │
-│  - Extract      │
-│  - Transform    │
-│  - Load         │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│  Data Warehouse │
-│  - DuckDB       │
-│  - PostgreSQL   │
-└─────────────────┘
-```
+This ETL orchestrator enables you to:
+- **Extract** data from multiple sources (PostgreSQL databases, HTTP APIs)
+- **Transform** data using custom JavaScript/TypeScript functions
+- **Load** data into your data warehouse (DuckDB, PostgreSQL, BigQuery)
+- **Schedule** automated pipeline executions with cron expressions
+- **Monitor** pipeline runs, logs, and statistics via REST API and web UI
 
 ## Tech Stack
 
-- **Backend**: Fastify + TypeScript
-- **Control DB**: Prisma + PostgreSQL
-- **Warehouse**: DuckDB (or PostgreSQL/BigQuery)
+### Backend
+- **Runtime**: Node.js 18+
+- **Framework**: Fastify (TypeScript)
+- **ORM**: Prisma
+- **Control Database**: PostgreSQL
+- **Warehouse**: DuckDB (extensible to PostgreSQL/BigQuery)
 - **Scheduler**: node-cron
-- **UI**: Next.js + React + Tailwind CSS
+- **Validation**: Zod
+- **Testing**: Vitest
+- **Linting**: ESLint + TypeScript ESLint
+
+### Frontend
+- **Framework**: Next.js 14 (App Router)
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS
+- **API Client**: Type-safe REST client
+
+### Infrastructure
+- **Containerization**: Docker & Docker Compose
+- **Development**: Hot-reload with tsx/Next.js dev server
+
+## Domain Model Summary
+
+### Core Entities
+
+```
+DataSource (id, name, type, configJson)
+  ↓ 1:N
+Pipeline (id, name, sourceId, targetId, transformScriptPath, scheduleCron)
+  ↓ 1:N
+PipelineRun (id, pipelineId, status, startedAt, finishedAt, statsJson)
+
+DataTarget (id, name, type, configJson)
+  ↑ 1:N
+  Pipeline
+```
+
+### Entity Relationships
+
+- **DataSource** → **Pipeline**: One source can feed multiple pipelines
+- **DataTarget** → **Pipeline**: One target can receive from multiple pipelines
+- **Pipeline** → **PipelineRun**: Each pipeline maintains a history of executions
+- Pipelines optionally reference transform scripts for data manipulation
 
 ## Getting Started
 
-### Prerequisites
+### Requirements
 
-- Node.js 18+
+- Node.js >= 18.0.0
 - Docker & Docker Compose
-- npm or yarn
+- npm (comes with Node.js)
 
-### Installation
+### Setup Steps
 
-1. Clone the repository:
+#### 1. Clone and Install
+
 ```bash
 git clone <repository-url>
 cd data-warehouse-etl-orchestrator
-```
-
-2. Install dependencies:
-```bash
 npm install
 ```
 
-3. Start required services (PostgreSQL):
-```bash
-docker-compose up -d
-```
+#### 2. Environment Configuration
 
-4. Set up environment variables:
 ```bash
 cp .env.example .env
-# Edit .env with your configuration
 ```
 
-5. Initialize the database:
+Edit `.env` with your configuration (defaults work for local development):
+
 ```bash
-npm run migrate
-npm run seed
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/etl_orchestrator?schema=public"
+WAREHOUSE_TYPE="duckdb"
+DUCKDB_PATH="./data/warehouse.duckdb"
+API_PORT=3001
+API_HOST="0.0.0.0"
+NEXT_PUBLIC_API_URL="http://localhost:3001"
+ENABLE_SCHEDULER=true
 ```
 
-6. Start the development servers:
+#### 3. Start Services
+
+**Option A: Local Development (Recommended)**
+
 ```bash
-# Terminal 1: Start backend API
+# Start only databases
+npm run docker:dev
+
+# Generate Prisma client
+npm run db:generate
+
+# Run migrations
+npm run db:migrate
+
+# Seed sample data
+npm run db:seed
+
+# Start all services (API + Worker + UI)
+npm run dev
+```
+
+**Option B: Individual Services**
+
+```bash
+# Terminal 1: Backend API
 npm run dev:backend
 
-# Terminal 2: Start worker (scheduler)
+# Terminal 2: Worker (Scheduler)
 npm run dev:worker
 
-# Terminal 3: Start UI
+# Terminal 3: UI
 npm run dev:ui
 ```
 
-7. Access the application:
-- UI: http://localhost:3000
-- API: http://localhost:3001
+**Option C: Full Docker Stack**
+
+```bash
+# Build and start all containers
+npm run docker:up
+
+# Run migrations inside container
+docker exec -it <api-container> npm run db:migrate
+
+# Seed data
+docker exec -it <api-container> npm run db:seed
+```
+
+#### 4. Verify Installation
+
+```bash
+# Check API health
+curl http://localhost:3001/health
+
+# Open UI in browser
+open http://localhost:3000
+```
+
+## Example Flow: Complete Vertical Slice
+
+Here's a complete end-to-end example demonstrating the full ETL workflow using pre-seeded data.
+
+### 1. View Available Pipelines
+
+**Via UI:**
+Navigate to http://localhost:3000/pipelines
+
+**Via API:**
+```bash
+curl http://localhost:3001/api/pipelines
+```
+
+You'll see the example pipeline: **"Users API to Warehouse"**
+
+### 2. Inspect Pipeline Configuration
+
+```bash
+curl http://localhost:3001/api/pipelines/<PIPELINE_ID>
+```
+
+This pipeline demonstrates:
+- **Source**: JSONPlaceholder API (public test API)
+- **Target**: DuckDB warehouse table `users`
+- **Schedule**: Every 6 hours (disabled by default for manual testing)
+- **Transform**: None (direct extract-load)
+
+### 3. Execute Pipeline
+
+**Via UI:**
+Click the "Execute" button next to the pipeline
+
+**Via API:**
+```bash
+curl -X POST http://localhost:3001/api/pipelines/<PIPELINE_ID>/execute
+```
+
+Response:
+```json
+{
+  "runId": "uuid-here",
+  "message": "Pipeline execution started"
+}
+```
+
+### 4. Monitor Execution
+
+**Via UI:**
+Click on the pipeline name to view run history and details
+
+**Via API:**
+```bash
+# Get all runs for this pipeline
+curl http://localhost:3001/api/pipelines/<PIPELINE_ID>/runs
+
+# Get specific run details
+curl http://localhost:3001/api/runs/<RUN_ID>
+```
+
+Example run result:
+```json
+{
+  "id": "run-id",
+  "pipelineId": "pipeline-id",
+  "status": "success",
+  "startedAt": "2024-01-01T10:00:00Z",
+  "finishedAt": "2024-01-01T10:00:05Z",
+  "statsJson": {
+    "extractedRows": 10,
+    "transformedRows": 10,
+    "loadedRows": 10
+  },
+  "logPath": "logs/pipeline-xxx-xxx.log"
+}
+```
+
+### 5. Query Warehouse Data
+
+```bash
+# Install DuckDB CLI if not already installed
+# macOS: brew install duckdb
+# Linux: https://duckdb.org/docs/installation/
+
+# Query the data
+duckdb data/warehouse.duckdb
+
+# In DuckDB shell:
+SELECT * FROM users LIMIT 5;
+SELECT COUNT(*) as total_users FROM users;
+```
+
+This complete workflow demonstrates:
+- ✅ API extraction
+- ✅ Data loading to warehouse
+- ✅ Run tracking and logging
+- ✅ UI and API interaction
+
+## Common Development Tasks
+
+### Database Operations
+
+```bash
+# Generate Prisma client (run after schema changes)
+npm run db:generate
+
+# Create and apply migration
+npm run db:migrate
+
+# Push schema without migration (development only)
+npm run db:push
+
+# Seed database with example data
+npm run db:seed
+
+# Open Prisma Studio (database GUI)
+npm run db:studio
+```
+
+### Testing
+
+```bash
+# Run all tests
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Generate coverage report
+npm run test:coverage
+```
+
+### Code Quality
+
+```bash
+# Run linter
+npm run lint
+
+# Fix linting issues automatically
+npm run lint:fix
+
+# Type check without building
+npm run type-check
+```
+
+### Building and Running
+
+```bash
+# Build all packages
+npm run build
+
+# Start production servers
+npm run start
+```
+
+### Docker Operations
+
+```bash
+# Start all services (full stack)
+npm run docker:up
+
+# Start only databases (dev mode)
+npm run docker:dev
+
+# Stop all services
+npm run docker:down
+
+# View container logs
+npm run docker:logs
+```
 
 ## Usage Examples
 
@@ -474,15 +695,49 @@ For issues and questions:
 - Check existing documentation
 - Review example configurations
 
-## Roadmap
+## Future Extensions
 
-Future enhancements:
+The following features are planned for future releases:
 
-- [ ] More connectors (MySQL, MongoDB, S3, Snowflake)
-- [ ] Data quality checks and validation
-- [ ] Incremental loading strategies
-- [ ] Pipeline dependencies and DAGs
-- [ ] Advanced monitoring and alerting
-- [ ] Data lineage visualization
+### Connectors
+- [ ] MySQL source connector
+- [ ] MongoDB source connector
+- [ ] Amazon S3 source/target connector
+- [ ] Snowflake target connector
+- [ ] Google BigQuery target connector (full implementation)
+- [ ] Apache Kafka source connector
+- [ ] CSV file source connector (complete implementation)
+
+### Data Quality & Validation
+- [ ] Schema validation rules
+- [ ] Data quality checks (completeness, uniqueness, range checks)
+- [ ] Anomaly detection
+- [ ] Data profiling
+
+### Advanced Features
+- [ ] Incremental loading strategies (CDC, timestamps)
+- [ ] Pipeline dependencies and DAG execution
+- [ ] Parallel pipeline execution
+- [ ] Retry policies and backoff strategies
+- [ ] Pipeline versioning
+
+### Monitoring & Observability
+- [ ] Prometheus metrics export
+- [ ] Grafana dashboard templates
+- [ ] Alert manager integration
+- [ ] Webhook notifications
+- [ ] Enhanced logging and tracing
+
+### Enterprise Features
 - [ ] Multi-tenant support
-- [ ] Authentication & authorization
+- [ ] Authentication & authorization (JWT, OAuth)
+- [ ] Role-based access control (RBAC)
+- [ ] Audit logs
+- [ ] Data lineage visualization
+- [ ] Cost tracking and optimization
+
+### Developer Experience
+- [ ] Web-based transform editor
+- [ ] Pipeline testing framework
+- [ ] CI/CD integration examples
+- [ ] Terraform/Kubernetes deployment templates

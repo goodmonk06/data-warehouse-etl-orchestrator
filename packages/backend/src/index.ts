@@ -4,6 +4,7 @@ import cors from '@fastify/cors';
 import { PrismaClient } from '@prisma/client';
 import { PipelineExecutor } from './engine';
 import { registerRoutes } from './api';
+import { handleError } from './utils/errors';
 
 const prisma = new PrismaClient();
 const executor = new PipelineExecutor(prisma);
@@ -22,13 +23,8 @@ async function start() {
     // Register routes
     await registerRoutes(app, prisma, executor);
 
-    // Error handler
-    app.setErrorHandler((error, request, reply) => {
-      app.log.error(error);
-      reply.status(500).send({
-        error: error.message || 'Internal Server Error',
-      });
-    });
+    // Centralized error handler
+    app.setErrorHandler(handleError);
 
     // Start server
     const port = parseInt(process.env.API_PORT || '3001');

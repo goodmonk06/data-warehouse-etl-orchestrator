@@ -7,12 +7,28 @@
     "packages/*"
   ],
   "scripts": {
+    "dev": "concurrently \"npm:dev:*\"",
     "dev:backend": "npm run dev --workspace=packages/backend",
     "dev:ui": "npm run dev --workspace=packages/ui",
     "dev:worker": "npm run dev:worker --workspace=packages/backend",
     "build": "npm run build --workspaces",
+    "start": "npm run start --workspaces",
+    "test": "npm run test --workspaces",
+    "test:watch": "npm run test:watch --workspaces",
+    "lint": "npm run lint --workspaces",
+    "lint:fix": "npm run lint:fix --workspaces",
+    "type-check": "npm run type-check --workspaces",
+    "db:generate": "npm run db:generate --workspace=packages/backend",
+    "db:push": "npm run db:push --workspace=packages/backend",
+    "db:migrate": "npm run db:migrate --workspace=packages/backend",
+    "db:seed": "npm run db:seed --workspace=packages/backend",
+    "db:studio": "npm run db:studio --workspace=packages/backend",
     "migrate": "npm run migrate --workspace=packages/backend",
-    "seed": "npm run seed --workspace=packages/backend"
+    "seed": "npm run seed --workspace=packages/backend",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:dev": "docker-compose -f docker-compose.dev.yml up -d",
+    "docker:logs": "docker-compose logs -f"
   },
   "engines": {
     "node": ">=18.0.0"
@@ -22,5 +38,8 @@
     "data-warehouse",
     "orchestrator",
     "pipeline"
-  ]
+  ],
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
 }

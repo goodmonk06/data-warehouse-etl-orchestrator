@@ -4,12 +4,15 @@
 
 ## Overview
 
-This ETL orchestrator enables you to:
-- **Extract** data from multiple sources (PostgreSQL databases, HTTP APIs)
-- **Transform** data using custom JavaScript/TypeScript functions
+This production-ready ETL orchestrator enables you to:
+- **Extract** data from multiple sources (PostgreSQL databases, HTTP APIs, CSV files)
+- **Transform** data using reusable templates or custom JavaScript/TypeScript functions
 - **Load** data into your data warehouse (DuckDB, PostgreSQL, BigQuery)
 - **Schedule** automated pipeline executions with cron expressions
 - **Monitor** pipeline runs, logs, and statistics via REST API and web UI
+- **Validate** data quality with automated rules and scoring
+- **Test** connections with health checks and diagnostics
+- **Extend** functionality with pluggable adapters for notifications, metrics, and storage
 
 ## Tech Stack
 
@@ -39,23 +42,52 @@ This ETL orchestrator enables you to:
 ### Core Entities
 
 ```
-DataSource (id, name, type, configJson)
+DataSource                TransformTemplate
+  ↓ 1:N                      ↓ 1:N
+Pipeline ←------------------- (optional)
   ↓ 1:N
-Pipeline (id, name, sourceId, targetId, transformScriptPath, scheduleCron)
-  ↓ 1:N
-PipelineRun (id, pipelineId, status, startedAt, finishedAt, statsJson)
+PipelineRun → DataQualityResult
+              DataTarget
 
-DataTarget (id, name, type, configJson)
-  ↑ 1:N
-  Pipeline
+ConnectionTest → DataSource / DataTarget
+DataQualityRule → Pipeline
 ```
 
-### Entity Relationships
+### Phase 3 Enhancements
 
-- **DataSource** → **Pipeline**: One source can feed multiple pipelines
-- **DataTarget** → **Pipeline**: One target can receive from multiple pipelines
-- **Pipeline** → **PipelineRun**: Each pipeline maintains a history of executions
-- Pipelines optionally reference transform scripts for data manipulation
+The orchestrator now includes **12 entities** (up from 4):
+
+**Core Workflow:**
+- `DataSource` - Source system configurations with tags, metadata, health tracking
+- `DataTarget` - Target system configurations with similar enhancements
+- `Pipeline` - ETL workflows with priorities, retries, timeouts, dependencies
+- `PipelineRun` - Execution history with quality scores and detailed metrics
+
+**Transform Templates:**
+- `TransformTemplate` - Reusable transform logic with versioning (7 pre-built templates included)
+
+**Data Quality:**
+- `DataQualityRule` - Validation rules (completeness, uniqueness, range, schema, custom)
+- `DataQualityResult` - Quality check results with scores and violations
+
+**Connection Testing:**
+- `ConnectionTest` - Connection health checks with response times and diagnostics
+
+**Notifications:**
+- `NotificationConfig` - Alert configurations (email, Slack, webhook, SMS)
+- `NotificationLog` - Notification tracking and audit trail
+
+**Orchestration:**
+- `PipelineScheduleHistory` - Schedule execution audit trail
+- `PipelineDependency` - DAG support for complex workflows
+
+### Key Features
+
+- **Extensibility**: Adapter interfaces for notifications, metrics, and storage
+- **Observability**: Structured logging with context and metrics collection
+- **Quality**: Automated data quality validation with severity levels
+- **Health**: Connection testing with historical tracking
+- **Reusability**: Transform template library with versioning and cloning
 
 ## Getting Started
 
@@ -487,35 +519,63 @@ export default async function transform(data: any[]): Promise<any[]> {
 
 ## API Reference
 
-### Data Sources
+### Quick Reference
 
+**Data Sources & Targets:**
 - `GET /api/sources` - List all sources
 - `POST /api/sources` - Create a new source
 - `GET /api/sources/:id` - Get source details
 - `PUT /api/sources/:id` - Update source
 - `DELETE /api/sources/:id` - Delete source
+- `POST /api/sources/:id/test` - **Test source connection**
+- `GET /api/sources/:id/test-history` - **Get test history**
 
-### Data Targets
+*(Similar endpoints available for `/api/targets`)*
 
-- `GET /api/targets` - List all targets
-- `POST /api/targets` - Create a new target
-- `GET /api/targets/:id` - Get target details
-- `PUT /api/targets/:id` - Update target
-- `DELETE /api/targets/:id` - Delete target
+**Transform Templates (NEW):**
+- `GET /api/transform-templates` - List templates with filtering
+- `POST /api/transform-templates` - Create template
+- `GET /api/transform-templates/:id` - Get template details
+- `PUT /api/transform-templates/:id` - Update template
+- `DELETE /api/transform-templates/:id` - Delete template
+- `POST /api/transform-templates/:id/clone` - Clone template with new version
+- `POST /api/transform-templates/validate` - Validate template code
 
-### Pipelines
+**Connection Testing (NEW):**
+- `POST /api/sources/:id/test` - Test source connection
+- `POST /api/targets/:id/test` - Test target connection
+- `GET /api/connection-tests` - List recent tests
+- `GET /api/connection-health` - Get health summary
 
+**Data Quality Rules (NEW):**
+- `POST /api/data-quality-rules` - Create quality rule
+- `GET /api/pipelines/:pipelineId/data-quality-rules` - List rules for pipeline
+- `GET /api/data-quality-rules/:id` - Get rule details
+- `PUT /api/data-quality-rules/:id` - Update rule
+- `DELETE /api/data-quality-rules/:id` - Delete rule
+- `GET /api/runs/:runId/data-quality-results` - Get quality results for run
+
+**Pipelines:**
 - `GET /api/pipelines` - List all pipelines
 - `POST /api/pipelines` - Create a new pipeline
 - `GET /api/pipelines/:id` - Get pipeline details
 - `PUT /api/pipelines/:id` - Update pipeline
 - `DELETE /api/pipelines/:id` - Delete pipeline
 - `POST /api/pipelines/:id/execute` - Execute pipeline manually
-
-### Pipeline Runs
-
 - `GET /api/pipelines/:id/runs` - Get pipeline run history
+
+**Pipeline Runs:**
 - `GET /api/runs/:id` - Get run details
+
+### Complete API Documentation
+
+For comprehensive API documentation including request/response schemas, error handling, and examples, see:
+
+📘 **[Complete API Reference](./docs/API_REFERENCE.md)**
+
+📋 **[Integration Recipes & Examples](./docs/INTEGRATION_RECIPES.md)**
+
+📊 **[Phase 3 Overview & Architecture](./docs/PHASE3_OVERVIEW.md)**
 
 ## Transform Scripts
 
@@ -695,6 +755,57 @@ For issues and questions:
 - Check existing documentation
 - Review example configurations
 
+## Phase 3 Completed Features ✅
+
+The following features have been implemented in Phase 3:
+
+### Transform Templates
+- [x] Reusable transform template library
+- [x] Template versioning and cloning
+- [x] 7 pre-built templates (cleaning, enrichment, aggregation, validation)
+- [x] Code validation endpoint
+- [x] Template categorization and tagging
+
+### Data Quality & Validation
+- [x] Schema validation rules
+- [x] Data quality checks (completeness, uniqueness, range checks)
+- [x] Custom quality rules with code
+- [x] Quality scoring and violation tracking
+- [x] Severity levels (critical, warning, info)
+
+### Connection Testing & Health
+- [x] Connection testing for sources and targets
+- [x] Health check dashboard with summary metrics
+- [x] Test history tracking
+- [x] Response time monitoring
+- [x] Detailed diagnostics
+
+### Advanced Features
+- [x] Retry policies and backoff strategies
+- [x] Pipeline priorities and timeouts
+- [x] Pipeline dependencies (schema support)
+- [x] Enhanced metadata and tagging
+
+### Monitoring & Observability
+- [x] Structured logging with context
+- [x] Metrics collection (counters, gauges, histograms)
+- [x] Request ID tracking
+- [x] Child loggers with inheritance
+
+### Extensibility
+- [x] Notification adapter interface (email, Slack, webhook, SMS)
+- [x] Metrics adapter interface (Prometheus-compatible)
+- [x] Storage adapter interface (S3, Azure, GCS)
+- [x] Adapter registry for runtime configuration
+- [x] In-memory adapters for testing
+
+### Developer Experience
+- [x] Comprehensive API documentation
+- [x] Integration recipes and examples
+- [x] Rich seed data with personas
+- [x] Comprehensive test suite
+- [x] Centralized error handling
+
 ## Future Extensions
 
 The following features are planned for future releases:
@@ -702,42 +813,41 @@ The following features are planned for future releases:
 ### Connectors
 - [ ] MySQL source connector
 - [ ] MongoDB source connector
-- [ ] Amazon S3 source/target connector
+- [ ] Amazon S3 source/target connector (interface exists, needs implementation)
 - [ ] Snowflake target connector
 - [ ] Google BigQuery target connector (full implementation)
 - [ ] Apache Kafka source connector
-- [ ] CSV file source connector (complete implementation)
 
-### Data Quality & Validation
-- [ ] Schema validation rules
-- [ ] Data quality checks (completeness, uniqueness, range checks)
+### Data Quality
 - [ ] Anomaly detection
 - [ ] Data profiling
+- [ ] Auto-generated quality rules from data profiling
+- [ ] Quality trend analysis
 
 ### Advanced Features
 - [ ] Incremental loading strategies (CDC, timestamps)
-- [ ] Pipeline dependencies and DAG execution
+- [ ] DAG execution engine (schema exists, needs runtime)
 - [ ] Parallel pipeline execution
-- [ ] Retry policies and backoff strategies
 - [ ] Pipeline versioning
 
 ### Monitoring & Observability
-- [ ] Prometheus metrics export
+- [ ] Prometheus metrics export (adapter ready)
 - [ ] Grafana dashboard templates
-- [ ] Alert manager integration
-- [ ] Webhook notifications
-- [ ] Enhanced logging and tracing
+- [ ] Alert manager integration (notification adapter ready)
+- [ ] Active notification dispatching
+- [ ] Distributed tracing
 
 ### Enterprise Features
 - [ ] Multi-tenant support
 - [ ] Authentication & authorization (JWT, OAuth)
 - [ ] Role-based access control (RBAC)
-- [ ] Audit logs
+- [ ] Audit logs (schema ready)
 - [ ] Data lineage visualization
 - [ ] Cost tracking and optimization
 
 ### Developer Experience
 - [ ] Web-based transform editor
+- [ ] CLI tool for pipeline management
 - [ ] Pipeline testing framework
 - [ ] CI/CD integration examples
 - [ ] Terraform/Kubernetes deployment templates
